@@ -1,3 +1,6 @@
+# 
+# Module holds web3 code to get balances and volumes
+#
 from web3 import Web3
 import math
 import pickle
@@ -22,8 +25,8 @@ class Block:
     def __repr__(self):
         return str(self.block_nr)
 
-    def save(self, download_dir):
-        path = os.path.join(download_dir, str(self.block_nr))
+    def save(self, cache_dir):
+        path = os.path.join(cache_dir, str(self.block_nr))
         with open(path, 'wb') as f:
             pickle.dump(self, f)
 
@@ -32,7 +35,6 @@ def init():
         tokens[token_name] = Web3.to_checksum_address(token_address.lower())
 
 def get_balance(api_key, wallet_address, req_tokens):
-    # normalize
     wallet_address = Web3.to_checksum_address(wallet_address)
 
     # Connect to the Ethereum node
@@ -70,41 +72,52 @@ def get_balance(api_key, wallet_address, req_tokens):
         
     return token_balances
 
-def calculate_block_range(web3, download_dir):
-    latest_block = web3.eth.block_number
-    to_block = latest_block
-    blocks_per_day = int((24 * 60 * 60) / 13.5)
-    from_block = to_block - blocks_per_day
+def get_token_volume(cache_dir, token_id):
+    '''
+    Gets entire volume of all cached blocks
+    '''
+    full_cache_dir = os.path.join(cache_dir, token_id)
+    volumes = {}
+    for path in os.listdir(full_cache_dir):
+        if not os.path.isfile(os.path.join(full_cache_dir, path)):
+            continue
 
-    highest = 0
-    for path in os.listdir(download_dir):
-        fullpath = os.path.join(download_dir, path)
-        if os.path.isfile(fullpath):
-            if int(path) > highest:
-                highest = int(path)
+        filepath = os.path.join(full_cache_dir, path)
+        block = None
+        with open(filepath, 'rb') as f:
+            block = pickle.load(f)
+            
+        for event in block.events:
+            fro = str(event["from"]).lower()
+            to = str(event["to"]).lower()
+            if fro not in volumes: volumes[fro] = 0
+            if to not in volumes: volumes[to] = 0
 
-    if highest > from_block:
-        from_block = highest
+            volumes[fro] += event["value"]
+            volumes[to] += event["value"]
 
-    return from_block, to_block
+    dividend = 1
+    if token_id == "ETH": 
+        dividend = 10**18
+    else:
+        dividend = 10**6
 
-def remove_old_blocks(web3, download_dir):
-    latest_block = web3.eth.block_number
-    to_block = latest_block
-    blocks_per_day = int((24 * 60 * 60) / 13.5)
-    from_block = to_block - blocks_per_day
+    for key in volumes.keys():
+        volumes[key] = volumes[key] / dividend 
 
-    for path in os.listdir(download_dir):
-        fullpath = os.path.join(download_dir, path)
-        remove_block = os.path.isfile(fullpath) and int(path) < from_block
-        if remove_block:
-            os.remove(fullpath)
+    return volumes
 
-def download_blocks(download_dir, api_key, block_id):
-    if block_id == "ETH":
-        return download_blocks_eth(download_dir, api_key)
+def get_volume(cache_dir, tokens):
+    volumes = {}
+    for token in tokens:
+        volumes[token] = get_token_volume(cache_dir, token)
+    return volumes
 
-    full_download_dir = os.path.join(download_dir, block_id)
+def download_blocks(cache_dir, api_key, token_id):
+    if token_id == "ETH":
+        return download_blocks_eth(cache_dir, api_key)
+
+    full_cache_dir = os.path.join(cache_dir, token_id)
     web3 = InfuraWeb3(api_key)
 
     # USDC contract address and ABI (with Transfer event definition)
@@ -122,10 +135,10 @@ def download_blocks(download_dir, api_key, block_id):
     ]
 
     # Create a contract instance
-    usdc_contract = web3.eth.contract(address=tokens[block_id], abi=usdc_abi)
+    usdc_contract = web3.eth.contract(address=tokens[token_id], abi=usdc_abi)
 
-    from_block, to_block = calculate_block_range(web3, full_download_dir) 
-    remove_old_blocks(web3, full_download_dir)
+    from_block, to_block = blocks_to_download(web3, full_cache_dir) 
+    remove_old_blocks(web3, full_cache_dir)
 
 
     # Fetch Transfer events from the last 24 hours
@@ -151,16 +164,16 @@ def download_blocks(download_dir, api_key, block_id):
             blocks[blockNumber].events.append(event_dict)
 
         for _, block in blocks.items():
-            Path(full_download_dir).mkdir(parents=True, exist_ok=True)
-            block.save(full_download_dir)
+            Path(full_cache_dir).mkdir(parents=True, exist_ok=True)
+            block.save(full_cache_dir)
 
-def download_blocks_eth(download_dir, api_key):
-    full_download_dir = os.path.join(download_dir, "ETH")
+def download_blocks_eth(cache_dir, api_key):
+    full_cache_dir = os.path.join(cache_dir, "ETH")
 
     web3 = InfuraWeb3(api_key)
 
-    from_block, to_block = calculate_block_range(web3, full_download_dir)
-    remove_old_blocks(web3, full_download_dir)
+    from_block, to_block = blocks_to_download(web3, full_cache_dir)
+    remove_old_blocks(web3, full_cache_dir)
 
     print("new blocks to donwload",to_block - from_block)
     for	i in range(from_block, to_block):
@@ -172,42 +185,35 @@ def download_blocks_eth(download_dir, api_key):
             event_dict = {"from": tx["from"], "to": tx["to"], "value": tx["value"]}
             block.events.append(event_dict)
 
-        block.save(full_download_dir)
+        block.save(full_cache_dir)
 
-def get_token_volume(download_dir, block_id):
-    full_download_dir = os.path.join(download_dir, block_id)
-    volumes = {}
-    for path in os.listdir(full_download_dir):
-        if os.path.isfile(os.path.join(full_download_dir, path)):
-            filepath = os.path.join(full_download_dir, path)
-            block = None
-            with open(filepath, 'rb') as f:
-                block = pickle.load(f)
-            
-            for event in block.events:
-                f = str(event["from"]).lower()
-                to = str(event["to"]).lower()
-                if f not in volumes:
-                    volumes[f] = 0
-                if to not in volumes:
-                    volumes[to] = 0
+## HELPER FUNCS ##
+def blocks_to_download(web3, cache_dir):
+    latest_block = web3.eth.block_number
+    to_block = latest_block
+    blocks_per_day = int((24 * 60 * 60) / 13.5)
+    from_block = to_block - blocks_per_day
 
-                volumes[f] += event["value"]
-                volumes[to] += event["value"]
+    highest = 0
+    for path in os.listdir(cache_dir):
+        fullpath = os.path.join(cache_dir, path)
+        if os.path.isfile(fullpath):
+            if int(path) > highest:
+                highest = int(path)
 
-    divident = 1
-    if block_id == "ETH": 
-        dividend = 10**18
-    else:
-        dividend = 10**6
+    if highest > from_block:
+        from_block = highest
 
-    for key in volumes.keys():
-        volumes[key] = volumes[key] / dividend 
+    return from_block, to_block
 
-    return volumes
+def remove_old_blocks(web3, cache_dir):
+    latest_block = web3.eth.block_number
+    to_block = latest_block
+    blocks_per_day = int((24 * 60 * 60) / 13.5)
+    from_block = to_block - blocks_per_day
 
-def get_volume(download_dir, tokens):
-    volumes = {}
-    for token in tokens:
-        volumes[token] = get_token_volume(download_dir, token)
-    return volumes
+    for path in os.listdir(cache_dir):
+        fullpath = os.path.join(cache_dir, path)
+        remove_block = os.path.isfile(fullpath) and int(path) < from_block
+        if remove_block:
+            os.remove(fullpath)
