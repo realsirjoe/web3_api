@@ -1,7 +1,7 @@
 # How to Run: 
 
-## Install Dependencies
-pip3 install -r requirements.txt
+*Install Dependencies*
+```pip3 install -r requirements.txt```
 
 ## Config
 Edit infura_api_key and cache_path in app.py l11-l12
