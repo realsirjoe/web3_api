@@ -1,11 +1,11 @@
 # Test the API
 
-A deployed instance is available under
-https://tunnel.tokahe.com
+A deployed instance is available at \
+https://tunnel.tokahe.com \
 
-to get a wallets balance ( here binance ): 
+to get a wallets balance ( here binance ):\
 https://tunnel.tokahe.com/balance/0x28C6c06298d514Db089934071355E5743bf21d60
-to get a wallets 24h volume: 
+to get a wallets 24h volume:\
 https://tunnel.tokahe.com/volume/0x28C6c06298d514Db089934071355E5743bf21d60
 
 # How to Run: 
