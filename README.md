@@ -31,6 +31,6 @@ the volume is calculated by adding all outgoing and ingoing amounts together
     
 ## Possible Improvements
 
-Adding authentication ( bearer token, ... )
-Adding support for more tokens ( not just USDC, USDT )
-Adding Unit tests
+- Adding authentication ( bearer token, ... )
+- Adding support for more tokens ( not just USDC, USDT )
+- Adding Unit tests

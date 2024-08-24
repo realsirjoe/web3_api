@@ -1,15 +1,16 @@
+import os
+from pathlib import Path
 import json
 import threading
 from flask import Flask, jsonify, request, abort
 from werkzeug.exceptions import HTTPException
 from daemon import block_download_daemon
 from flask import g
-
 from crypto import init, download_blocks_eth, download_blocks, get_balance, get_volume
 
 ############### CONFIG ###############
 infura_api_key = "eeb48ea631c74f1682d9ce248112ec56"
-cache_path = "/Users/sirjoe/Downloads/crypto"
+cache_path = "/Users/sirjoe/Downloads/crypto2"
 ######################################
 
 tokens = ["ETH", "USDC", "USDT"]
@@ -55,6 +56,11 @@ def volume(wallet_address):
 
 if __name__ == '__main__':
     init()
+
+    for token in tokens:
+        full_download_dir = os.path.join(cache_path, token)
+        Path(full_download_dir).mkdir(parents=True, exist_ok=True)
+
     volumes = get_volume(cache_path, tokens)
 
     def daemon():
