@@ -1,10 +1,10 @@
 # Test the API
 
 A deployed instance is available at \
-https://tunnel.tokahe.com \
+https://tunnel.tokahe.com
 
 to get a wallets balance ( here binance ):\
-https://tunnel.tokahe.com/balance/0x28C6c06298d514Db089934071355E5743bf21d60
+https://tunnel.tokahe.com/balance/0x28C6c06298d514Db089934071355E5743bf21d60  \
 to get a wallets 24h volume:\
 https://tunnel.tokahe.com/volume/0x28C6c06298d514Db089934071355E5743bf21d60
 
@@ -44,3 +44,4 @@ Balances are retrieved easily via abi and pagination
 - Adding authentication ( bearer token, ... )
 - Adding support for more tokens ( not just USDC, USDT )
 - Adding Unit tests
+- Make configurable via environment variables
